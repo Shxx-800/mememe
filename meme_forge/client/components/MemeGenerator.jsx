@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Download, RotateCcw, Palette, Type, Image as ImageIcon, Video, Play, Pause } from 'lucide-react';
+import { Download, RotateCcw, Palette, Type, Image as ImageIcon, Video, Play, Pause, Settings, X } from 'lucide-react';
 import ImageUpload from './ImageUpload';
 import TextControls from './TextControls';
 import { drawMemeOnCanvas, drawMemeOnVideo } from '../utils/canvas';
@@ -8,6 +8,9 @@ const MemeGenerator = () => {
   const [selectedImage, setSelectedImage] = useState('');
   const [mediaType, setMediaType] = useState('image'); // 'image', 'video', 'gif'
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState('png');
+  const [downloadQuality, setDownloadQuality] = useState(0.9);
   const [topText, setTopText] = useState({
     content: 'TOP TEXT',
     fontSize: 48,
@@ -136,15 +139,10 @@ const MemeGenerator = () => {
 
   const downloadMeme = () => {
     if (!selectedImage) return;
-
-    if (mediaType === 'video') {
-      downloadVideoMeme();
-    } else {
-      downloadImageMeme();
-    }
+    setShowDownloadModal(true);
   };
 
-  const downloadImageMeme = () => {
+  const downloadImageMeme = (format = 'png', quality = 0.9) => {
     if (!canvasRef.current) return;
 
     const img = new Image();
@@ -162,9 +160,12 @@ const MemeGenerator = () => {
 
         drawMemeOnCanvas(canvas, img, downloadTopText, downloadBottomText);
 
+        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const extension = format === 'jpeg' ? 'jpg' : 'png';
+        
         const link = document.createElement('a');
-        link.download = `meme-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png', 0.95);
+        link.download = `meme-${Date.now()}.${extension}`;
+        link.href = canvas.toDataURL(mimeType, quality);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -182,30 +183,60 @@ const MemeGenerator = () => {
     img.src = selectedImage;
   };
 
-  const downloadVideoMeme = () => {
-    // For video download, we'll create a canvas with the current frame
+  const downloadVideoMeme = (quality = 'high') => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    canvas.width = video.videoWidth || 1920;
-    canvas.height = video.videoHeight || 1080;
+    // Set canvas size based on quality
+    let width, height;
+    switch (quality) {
+      case 'low':
+        width = Math.min(video.videoWidth || 640, 640);
+        height = Math.min(video.videoHeight || 480, 480);
+        break;
+      case 'medium':
+        width = Math.min(video.videoWidth || 1280, 1280);
+        height = Math.min(video.videoHeight || 720, 720);
+        break;
+      case 'high':
+      default:
+        width = video.videoWidth || 1920;
+        height = video.videoHeight || 1080;
+        break;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
 
     // Draw current video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Draw text overlays
-    drawMemeOnVideo(canvas, topText, bottomText);
+    // Draw text overlays with proper scaling
+    const scale = Math.min(width / 500, height / 500);
+    const scaledTopText = { ...topText, fontSize: Math.max(topText.fontSize * scale, 24) };
+    const scaledBottomText = { ...bottomText, fontSize: Math.max(bottomText.fontSize * scale, 24) };
+    
+    drawMemeOnVideo(canvas, scaledTopText, scaledBottomText);
 
-    // Download as image (current frame)
+    // Download as high-quality image
     const link = document.createElement('a');
-    link.download = `video-meme-${Date.now()}.png`;
+    link.download = `video-meme-${quality}-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png', 0.95);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDownload = () => {
+    if (mediaType === 'video') {
+      downloadVideoMeme(downloadQuality);
+    } else {
+      downloadImageMeme(downloadFormat, downloadQuality);
+    }
+    setShowDownloadModal(false);
   };
 
   const resetMeme = () => {
@@ -347,15 +378,144 @@ const MemeGenerator = () => {
             <button
               onClick={downloadMeme}
               disabled={!selectedImage}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-colors text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              title={mediaType === 'video' ? 'Download current frame as image' : 'Download meme'}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-colors text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="h-4 w-4" />
-              {mediaType === 'video' ? 'Frame' : 'Download'}
+              <Settings className="h-4 w-4" />
+              Download
             </button>
           </div>
         </div>
       </div>
+
+      {/* Download Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Download Options</h3>
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {mediaType === 'image' ? (
+                <>
+                  {/* Image Format Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Image Format
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setDownloadFormat('png')}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          downloadFormat === 'png'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="font-semibold">PNG</div>
+                        <div className="text-xs text-gray-500">Lossless, larger file</div>
+                      </button>
+                      <button
+                        onClick={() => setDownloadFormat('jpeg')}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          downloadFormat === 'jpeg'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="font-semibold">JPEG</div>
+                        <div className="text-xs text-gray-500">Compressed, smaller file</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quality Slider for JPEG */}
+                  {downloadFormat === 'jpeg' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quality: {Math.round(downloadQuality * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={downloadQuality}
+                        onChange={(e) => setDownloadQuality(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Lower quality</span>
+                        <span>Higher quality</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Video Quality Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Export Quality (Current Frame as Image)
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'low', label: 'Low (640x480)', desc: 'Smaller file size' },
+                        { value: 'medium', label: 'Medium (1280x720)', desc: 'Balanced quality' },
+                        { value: 'high', label: 'High (Original)', desc: 'Best quality' }
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setDownloadQuality(option.value)}
+                          className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                            downloadQuality === option.value
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="font-semibold">{option.label}</div>
+                          <div className="text-xs text-gray-500">{option.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="text-yellow-600 text-sm">
+                        <strong>Note:</strong> Video export captures the current frame as a high-quality image. 
+                        For full video export with text overlays, consider using video editing software.
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden high-res canvas */}
       <canvas ref={canvasRef} className="hidden" />
