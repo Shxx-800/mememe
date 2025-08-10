@@ -25,8 +25,8 @@ const TextControls = ({ text, onChange, placeholder }) => {
         <label className="text-[10px] font-medium text-gray-600">Font</label>
         <input
           type="range"
-          min="20"
-          max="80"
+          min="16"
+          max="120"
           value={text.fontSize}
           onChange={(e) => updateText({ fontSize: parseInt(e.target.value) })}
           className="w-20"

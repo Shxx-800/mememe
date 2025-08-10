@@ -76,7 +76,7 @@ const ImageUpload = ({ onImageSelect, onAIMemeGenerated }) => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*,.gif"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -86,9 +86,9 @@ const ImageUpload = ({ onImageSelect, onAIMemeGenerated }) => {
           >
             <Upload className="h-6 w-6 text-gray-400 group-hover:text-blue-500 mx-auto mb-1" />
             <p className="text-sm text-gray-600 group-hover:text-blue-600 font-medium">
-              Click to upload image
+              Click to upload media
             </p>
-            <p className="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
+            <p className="text-xs text-gray-400">Images, Videos, GIFs up to 50MB</p>
           </button>
         </div>
       )}

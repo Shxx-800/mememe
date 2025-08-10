@@ -75,3 +75,56 @@ export const drawMemeOnCanvas = (
   drawText(topText);
   drawText(bottomText);
 };
+
+export const drawMemeOnVideo = (canvas, topText, bottomText) => {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const { width, height } = canvas;
+
+  // Configure text rendering
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Draw text function for video
+  const drawText = (text) => {
+    if (!text.content.trim()) return;
+
+    const fontSize = Math.max(text.fontSize * (width / 500), 16);
+    ctx.font = `bold ${fontSize}px Impact, "Arial Black", Arial, sans-serif`;
+
+    const x = width / 2;
+    const y = (text.y / 100) * height;
+
+    // Draw stroke (outline) - more prominent for video
+    if (text.strokeWidth > 0) {
+      ctx.strokeStyle = text.stroke;
+      ctx.lineWidth = Math.max(text.strokeWidth * (width / 500), 2);
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.miterLimit = 2;
+      ctx.strokeText(text.content, x, y);
+    }
+
+    // Fill text with stronger shadow for video visibility
+    ctx.fillStyle = text.color;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.fillText(text.content, x, y);
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+  };
+
+  // Draw both texts
+  drawText(topText);
+  drawText(bottomText);
+};
